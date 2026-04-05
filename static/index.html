@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebCrawler Search</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Variables ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0b0f1a;
+  --surface:   #111827;
+  --surface2:  #1a2235;
+  --border:    #1f2d45;
+  --accent:    #3b82f6;
+  --accent2:   #60a5fa;
+  --accent-glow: rgba(59,130,246,0.18);
+  --text:      #e2e8f0;
+  --text-muted:#6b7280;
+  --text-dim:  #94a3b8;
+  --green:     #10b981;
+  --amber:     #f59e0b;
+  --red:       #ef4444;
+  --mark-bg:   rgba(59,130,246,0.25);
+  --mark-color:#93c5fd;
+  --radius:    12px;
+  --radius-sm: 7px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Background grid ───────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Header ────────────────────────────────────────────────── */
+header {
+  position: relative;
+  z-index: 10;
+  padding: 48px 24px 0;
+  text-align: center;
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.logo-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--accent), #1d4ed8);
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 24px rgba(59,130,246,0.4);
+}
+
+h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 36px;
+  font-weight: 300;
+}
+
+/* ── Stats bar ─────────────────────────────────────────────── */
+#stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#stats-bar.loaded { opacity: 1; }
+
+.stat-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 5px 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+  display: flex; align-items: center; gap: 6px;
+}
+.stat-pill strong { color: var(--accent2); font-weight: 600; }
+.stat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+/* ── Search bar ────────────────────────────────────────────── */
+.search-wrapper {
+  position: relative;
+  max-width: 680px;
+  margin: 0 auto 24px;
+}
+
+.search-box {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 100px;
+  padding: 16px 60px 16px 56px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-box::placeholder { color: var(--text-muted); }
+.search-box:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.search-icon {
+  position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); font-size: 18px; pointer-events: none;
+}
+
+.search-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: linear-gradient(135deg, var(--accent), #1d4ed8);
+  border: none; border-radius: 100px;
+  width: 40px; height: 40px;
+  cursor: pointer; color: white; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 12px rgba(59,130,246,0.4);
+}
+.search-btn:hover { transform: translateY(-50%) scale(1.06); box-shadow: 0 4px 20px rgba(59,130,246,0.5); }
+.search-btn:active { transform: translateY(-50%) scale(0.97); }
+
+/* ── Filters row ───────────────────────────────────────────── */
+.filters {
+  max-width: 680px;
+  margin: 0 auto 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.filter-group {
+  display: flex;
+  gap: 4px;
+}
+
+.filter-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--accent2); }
+.filter-btn.active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent2);
+  font-weight: 500;
+}
+
+.divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+/* ── Main content ──────────────────────────────────────────── */
+main {
+  position: relative;
+  z-index: 10;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ── Results header ────────────────────────────────────────── */
+.results-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 0 2px;
+}
+.results-count {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.results-count strong { color: var(--text-dim); }
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: none;
+}
+.spinner.active { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Result cards ──────────────────────────────────────────── */
+#results-list { display: flex; flex-direction: column; gap: 12px; }
+
+.result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  animation: fadeUp 0.3s ease both;
+  text-decoration: none;
+  display: block;
+  color: inherit;
+}
+.result-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px var(--accent-glow);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent2);
+  line-height: 1.3;
+  flex: 1;
+}
+.result-card:hover .card-title { color: #bfdbfe; }
+
+.score-badge {
+  background: var(--accent-glow);
+  border: 1px solid rgba(59,130,246,0.3);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-url {
+  font-size: 12px;
+  color: var(--green);
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+.card-snippet {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  line-height: 1.65;
+  margin-bottom: 14px;
+}
+.card-snippet mark {
+  background: var(--mark-bg);
+  color: var(--mark-color);
+  border-radius: 3px;
+  padding: 0 2px;
+  font-style: normal;
+}
+
+.card-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.meta-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.meta-chip svg { opacity: 0.6; }
+
+.depth-badge {
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.depth-1 { color: var(--green);  border-color: rgba(16,185,129,0.3); }
+.depth-2 { color: var(--amber);  border-color: rgba(245,158,11,0.3); }
+.depth-3 { color: var(--accent2);border-color: rgba(96,165,250,0.3); }
+
+/* ── Empty / loading states ────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+.empty-state h3 { font-family: 'Syne', sans-serif; font-size: 18px; margin-bottom: 8px; color: var(--text-dim); }
+.empty-state p  { font-size: 14px; line-height: 1.6; }
+
+/* ── Pagination ────────────────────────────────────────────── */
+#pagination {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.page-btn:hover { border-color: var(--accent); color: var(--accent2); }
+.page-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-row">
+    <div class="logo-icon">🕷</div>
+    <h1>WebCrawler Search</h1>
+  </div>
+  <p class="subtitle">Full-text search across all crawled pages — Université Souk Ahras</p>
+
+  <div id="stats-bar">
+    <div class="stat-pill">
+      <span class="stat-dot"></span>
+      <strong id="stat-pages">—</strong> pages indexed
+    </div>
+    <div class="stat-pill">🔗 <strong id="stat-links">—</strong> links mapped</div>
+    <div class="stat-pill">📁 <strong id="stat-files">—</strong> files stored</div>
+  </div>
+
+  <div class="search-wrapper">
+    <span class="search-icon">🔍</span>
+    <input
+      id="search-input"
+      class="search-box"
+      type="text"
+      placeholder="Search pages, titles, content…"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button class="search-btn" id="search-btn" title="Search">→</button>
+  </div>
+
+  <div class="filters">
+    <span class="filter-label">Sort by</span>
+    <div class="filter-group">
+      <button class="filter-btn active" data-sort="relevance">✦ Relevance</button>
+      <button class="filter-btn" data-sort="depth">Depth</button>
+      <button class="filter-btn" data-sort="date">Latest</button>
+    </div>
+    <div class="divider"></div>
+    <span class="filter-label">Depth</span>
+    <div class="filter-group">
+      <button class="filter-btn active" data-depth="all">All</button>
+      <button class="filter-btn" data-depth="1">1</button>
+      <button class="filter-btn" data-depth="2">2</button>
+      <button class="filter-btn" data-depth="3">3</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="results-meta" id="results-meta" style="display:none">
+    <div class="results-count" id="results-count"></div>
+    <div class="spinner" id="spinner"></div>
+  </div>
+
+  <div id="results-list">
+    <div class="empty-state">
+      <div class="icon">🕸</div>
+      <h3>Start searching</h3>
+      <p>Type a keyword above to search through all crawled<br>pages from Université Souk Ahras.</p>
+    </div>
+  </div>
+
+  <div id="pagination"></div>
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  query:   "",
+  sort:    "relevance",
+  depth:   "all",
+  page:    1,
+  total:   0,
+  pages:   0,
+};
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const input      = document.getElementById("search-input");
+const searchBtn  = document.getElementById("search-btn");
+const resultsList= document.getElementById("results-list");
+const pagination = document.getElementById("pagination");
+const resultsMeta= document.getElementById("results-meta");
+const resultsCount=document.getElementById("results-count");
+const spinner    = document.getElementById("spinner");
+
+// ── Load stats ─────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch("/api/stats");
+    const d = await r.json();
+    document.getElementById("stat-pages").textContent = d.pages.toLocaleString();
+    document.getElementById("stat-links").textContent = d.links.toLocaleString();
+    document.getElementById("stat-files").textContent = d.files.toLocaleString();
+    document.getElementById("stats-bar").classList.add("loaded");
+  } catch(e) {}
+}
+loadStats();
+
+// ── Filter buttons ─────────────────────────────────────────────────────────
+document.querySelectorAll("[data-sort]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-sort]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.sort = btn.dataset.sort;
+    state.page = 1;
+    if (state.query) doSearch();
+  });
+});
+
+document.querySelectorAll("[data-depth]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-depth]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.depth = btn.dataset.depth;
+    state.page  = 1;
+    if (state.query) doSearch();
+  });
+});
+
+// ── Search trigger ─────────────────────────────────────────────────────────
+searchBtn.addEventListener("click", () => {
+  state.query = input.value.trim();
+  state.page  = 1;
+  if (state.query) doSearch();
+});
+
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    state.query = input.value.trim();
+    state.page  = 1;
+    if (state.query) doSearch();
+  }
+});
+
+// ── Search ─────────────────────────────────────────────────────────────────
+async function doSearch() {
+  spinner.classList.add("active");
+  resultsMeta.style.display = "flex";
+  resultsCount.textContent  = "Searching…";
+  resultsList.innerHTML     = "";
+  pagination.innerHTML      = "";
+
+  const params = new URLSearchParams({
+    q:     state.query,
+    sort:  state.sort,
+    depth: state.depth,
+    page:  state.page,
+  });
+
+  try {
+    const res  = await fetch(`/api/search?${params}`);
+    const data = await res.json();
+    spinner.classList.remove("active");
+    renderResults(data);
+  } catch(e) {
+    spinner.classList.remove("active");
+    resultsList.innerHTML = `<div class="empty-state">
+      <div class="icon">⚠️</div>
+      <h3>Connection error</h3>
+      <p>Could not reach the search server.<br>Make sure app.py is running.</p>
+    </div>`;
+  }
+}
+
+// ── Render results ─────────────────────────────────────────────────────────
+function renderResults(data) {
+  state.total = data.total;
+  state.pages = data.pages;
+
+  if (data.total === 0) {
+    resultsCount.textContent = `No results for "${data.query}"`;
+    resultsList.innerHTML = `<div class="empty-state">
+      <div class="icon">🔎</div>
+      <h3>No pages found</h3>
+      <p>Try different keywords, or check that the crawler has indexed content.</p>
+    </div>`;
+    return;
+  }
+
+  resultsCount.innerHTML =
+    `<strong>${data.total.toLocaleString()}</strong> result${data.total !== 1 ? "s" : ""} for <strong>"${escHtml(data.query)}"</strong>`;
+
+  resultsList.innerHTML = "";
+  data.results.forEach((r, i) => {
+    const card = document.createElement("a");
+    card.className   = "result-card";
+    card.href        = r.url;
+    card.target      = "_blank";
+    card.rel         = "noopener noreferrer";
+    card.style.animationDelay = `${i * 40}ms`;
+
+    const score    = (r.rank * 100).toFixed(1);
+    const depthCls = `depth-${r.depth}`;
+    const dateStr  = r.indexed_at
+      ? new Date(r.indexed_at).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" })
+      : "";
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-title">${escHtml(r.title || "(No title)")}</div>
+        <div class="score-badge">Score ${score}</div>
+      </div>
+      <div class="card-url">${escHtml(r.url)}</div>
+      <div class="card-snippet">${r.snippet || "<em style='opacity:.5'>No preview available</em>"}</div>
+      <div class="card-meta">
+        <span class="depth-badge ${depthCls}">Depth ${r.depth}</span>
+        <span class="meta-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+          </svg>
+          ${r.incoming_links} incoming
+        </span>
+        <span class="meta-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 17 7 7 7"/>
+          </svg>
+          ${r.outgoing_links} outgoing
+        </span>
+        ${r.file_count > 0 ? `<span class="meta-chip">📁 ${r.file_count} file${r.file_count > 1 ? "s" : ""}</span>` : ""}
+        ${dateStr ? `<span class="meta-chip">🕐 ${dateStr}</span>` : ""}
+      </div>
+    `;
+    resultsList.appendChild(card);
+  });
+
+  renderPagination(data.page, data.pages);
+}
+
+// ── Pagination ─────────────────────────────────────────────────────────────
+function renderPagination(current, total) {
+  if (total <= 1) return;
+
+  pagination.innerHTML = "";
+
+  const add = (label, page, disabled = false, active = false) => {
+    const btn = document.createElement("button");
+    btn.className  = "page-btn" + (active ? " active" : "");
+    btn.textContent= label;
+    btn.disabled   = disabled;
+    btn.addEventListener("click", () => {
+      state.page = page;
+      doSearch();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    pagination.appendChild(btn);
+  };
+
+  add("←", current - 1, current === 1);
+
+  const start = Math.max(1, current - 2);
+  const end   = Math.min(total, current + 2);
+  if (start > 1) { add("1", 1); if (start > 2) add("…", null, true); }
+  for (let p = start; p <= end; p++) add(p, p, false, p === current);
+  if (end < total) { if (end < total - 1) add("…", null, true); add(total, total); }
+
+  add("→", current + 1, current === total);
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
