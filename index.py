@@ -141,9 +141,9 @@ import psycopg2
 
 
 DB_HOST     = "localhost"
-DB_NAME     = "web_crawler"
+DB_NAME     = "crawler"
 DB_USER     = "postgres"
-DB_PASSWORD = "20050114"
+DB_PASSWORD = "12345"
 
 conn = psycopg2.connect(
     host=DB_HOST,
