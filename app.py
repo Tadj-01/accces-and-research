@@ -9,9 +9,9 @@ app = Flask(__name__, static_folder="static")
 # DATABASE CONNECTION
 # ----------------------------
 DB_HOST     = "localhost"
-DB_NAME     = "crawler"
+DB_NAME     = "web_crawler"
 DB_USER     = "postgres"
-DB_PASSWORD = "12345"
+DB_PASSWORD = "20050114"
 
 def get_conn():
     return psycopg2.connect(
